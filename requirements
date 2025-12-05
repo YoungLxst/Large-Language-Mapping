@@ -1,4 +1,8 @@
-pytorch
+torch
+torchaudio
 polars
 polars_cloud
 numpy
+click
+requests
+tqdm
