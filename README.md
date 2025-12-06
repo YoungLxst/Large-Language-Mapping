@@ -14,3 +14,7 @@ python ./utils/load_data.py
 ````
 
 to add the data file with all the data preprocesing that we need
+
+## Warning
+
+On running audio files. Torchcodec need ffmpeg DLL. Verify if your computer have them

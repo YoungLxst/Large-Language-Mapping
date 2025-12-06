@@ -48,7 +48,7 @@ def clean_csv(dataset_path="data/common_voice_kpd/"):
                     if not lines:
                         break
                     lines = lines.split()
-                    client_id = np.append(client_id, np.int16(lines[0]))
+                    client_id = np.append(client_id, lines[0])
                     path = np.append(path, f"/{lang}/{file}/{lines[1]}/{lines[2]}")
                     language = np.append(language, lang)
 
