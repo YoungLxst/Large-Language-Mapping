@@ -40,7 +40,7 @@ def clean_csv(dataset_path="data/common_voice_kpd/"):
         for file in file_type:
             with open(f"{dataset_path}{lang}/{file}.csv", "r", encoding="utf-16") as f:
                 lines = f.readline()
-                client_id = np.array([], dtype=np.int16)
+                client_id = np.array([], dtype=np.int64)
                 path = np.array([])
                 language = np.array([])
                 while True:
@@ -48,15 +48,17 @@ def clean_csv(dataset_path="data/common_voice_kpd/"):
                     if not lines:
                         break
                     lines = lines.split()
-                    client_id = np.append(client_id, lines[0])
+                    client_id = np.append(client_id, np.int64(lines[0]))
                     path = np.append(path, f"/{lang}/{file}/{lines[1]}/{lines[2]}")
                     language = np.append(language, lang)
+                    label = np.append(label, np.int64(languages.index(lang)))
 
                 df = (
                     pl.DataFrame({
                         "client_id": client_id,
                         "path":path,
                         "language": language,
+                        "label": label,
                     })
                 )
 
@@ -68,6 +70,7 @@ def clean_csv(dataset_path="data/common_voice_kpd/"):
             "client_id": np.array([]),
             "path": np.array([]),
             "language": np.array([]),
+            "label":np.array([]),
         }).with_columns(
             pl.col("*").cast(pl.String)
         )
