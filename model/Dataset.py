@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset
 import torchaudio
 import torch.nn.functional as F
+import os
 
 BUNDLE = torchaudio.pipelines.WAV2VEC2_XLSR_300M
 WAV2VEC2_MODEL = BUNDLE.get_model()
@@ -49,3 +50,18 @@ class FeaturesDataset(Dataset):
         label = self.labels[idx]
 
         return x, label
+    
+class PrecomputedFeaturesDataset(Dataset):
+    def __init__(self, feature_dir):
+        self.files = sorted([
+            os.path.join(feature_dir, f)
+            for f in os.listdir(feature_dir)
+            if f.endswith(".pt")
+        ])
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        data = torch.load(self.files[idx])
+        return data["features"], data["label"]

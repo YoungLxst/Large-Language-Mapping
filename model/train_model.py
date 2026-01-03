@@ -7,7 +7,7 @@ if __name__ == "__main__":
 
     print("------\n    create dataloader\n\n")
     train_loader = DataLoader(
-        FeaturesDataset(pl.read_csv("data/train_clean.csv").sample(fraction=0.005, shuffle=True), root="data/common_voice_kpd"),
+        FeaturesDataset(pl.read_csv("data/train_clean.csv").sample(fraction=0.33, shuffle=True), root="data/common_voice_kpd"),
         batch_size=8,
         shuffle=True,
     )
@@ -20,5 +20,5 @@ if __name__ == "__main__":
 
     print("------\n    training\n\n")
     model = LargeLanguageMappingModel()
-    model.fit(train_loader, lossFunc="cel", opt="adam", nepochs=1)
+    model.fit(train_loader, lossFunc="cel", opt="adam", nepochs=5)
     model.save()

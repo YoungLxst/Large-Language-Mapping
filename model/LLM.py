@@ -77,7 +77,6 @@ class LargeLanguageMappingModel(nn.Module):
             for batch, labels in dataLoader:
 
                 outputs = self(batch)
-                tqdm.write(f"labels: {labels}")
                 loss = criterion(outputs, labels)
 
                 optimizer.zero_grad()
