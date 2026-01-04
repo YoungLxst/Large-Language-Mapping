@@ -47,50 +47,152 @@ class LargeLanguageMappingModel(nn.Module):
         return x
     
     def fit(self, dataLoader:DataLoader, lossFunc:str="mseloss",
-            opt:str ="adam", nepochs:int=20):
+        opt:str ="adam", nepochs:int=20,
+        device: torch.device | None = None,
+        amp: bool = True,
+        val_loader: DataLoader | None = None,
+        lr: float = 1e-3,
+        grad_accum_steps: int = 1):
 
-        crit_methods={
-            "mseloss":nn.MSELoss,
-            "l1loss":nn.L1Loss,
-            "cel":nn.CrossEntropyLoss,
-            "bcel":nn.BCELoss,
-            "smoothl1loss":nn.SmoothL1Loss
+        # Device handling
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        try:
+            self.to(device)
+        except Exception:
+            pass
+
+        crit_methods = {
+            "mseloss": nn.MSELoss,
+            "l1loss": nn.L1Loss,
+            "cel": nn.CrossEntropyLoss,
+            "bcel": nn.BCELoss,
+            "smoothl1loss": nn.SmoothL1Loss,
         }
         if lossFunc not in crit_methods:
             lossFunc = "mseloss"
         criterion = crit_methods[lossFunc]()
 
         optim_methods = {
-            "adam":optim.Adam,
-            "sgd":optim.SGD
+            "adam": optim.Adam,
+            "sgd": optim.SGD,
         }
         if opt not in optim_methods:
             opt = "adam"
-        optimizer = optim_methods[opt](self.parameters(), lr=1e-3)
-        
-        progress =tqdm(range(nepochs*len(dataLoader)))
-        result=[]
+        optimizer = optim_methods[opt](self.parameters(), lr=lr)
+
+        use_amp = amp and (device.type == "cuda") and hasattr(torch.cuda, "amp")
+        scaler = torch.cuda.amp.GradScaler() if use_amp else None
+
+        history = []
         for epoch in range(nepochs):
             self.train()
-            total_loss = 0
+            epoch_loss = 0.0
+            batches = 0
 
-            for batch, labels in dataLoader:
+            pbar = tqdm(dataLoader, desc=f"Epoch {epoch+1}/{nepochs}", leave=False)
+            for batch in pbar:
+                # Support dataloaders that return either (inputs, labels) or a dict
+                if isinstance(batch, (list, tuple)) and len(batch) >= 2:
+                    inputs, labels = batch[0], batch[1]
+                elif isinstance(batch, dict) and "inputs" in batch and "labels" in batch:
+                    inputs, labels = batch["inputs"], batch["labels"]
+                else:
+                    raise ValueError("DataLoader must return (inputs, labels) tuples or dict with 'inputs' and 'labels'.")
 
-                outputs = self(batch)
-                loss = criterion(outputs, labels)
+                inputs = inputs.to(device, non_blocking=True) if isinstance(inputs, torch.Tensor) else inputs
+                labels = labels.to(device, non_blocking=True) if isinstance(labels, torch.Tensor) else labels
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                # For CrossEntropyLoss ensure labels are long
+                if isinstance(criterion, nn.CrossEntropyLoss):
+                    labels = labels.long()
 
-                total_loss += loss.item()
-                progress.update()
-                progress.refresh()
+                # Gradient accumulation support: divide loss by grad_accum_steps
+                with torch.set_grad_enabled(True):
+                    try:
+                        if use_amp:
+                            with torch.cuda.amp.autocast():
+                                outputs = self(inputs)
+                                loss = criterion(outputs, labels)
+                            loss = loss / grad_accum_steps
+                            scaler.scale(loss).backward()
+                            if (batches + 1) % grad_accum_steps == 0:
+                                scaler.step(optimizer)
+                                scaler.update()
+                                optimizer.zero_grad()
+                        else:
+                            outputs = self(inputs)
+                            loss = criterion(outputs, labels)
+                            loss = loss / grad_accum_steps
+                            loss.backward()
+                            if (batches + 1) % grad_accum_steps == 0:
+                                optimizer.step()
+                                optimizer.zero_grad()
+                    except RuntimeError as e:
+                        if 'out of memory' in str(e).lower():
+                            try:
+                                torch.cuda.empty_cache()
+                            except Exception:
+                                pass
+                            raise RuntimeError(f"CUDA OOM during training step. Consider reducing batch_size, using smaller dtype or increasing grad_accum_steps. Original error: {e}") from e
+                        else:
+                            raise
 
-            tqdm.write(f"Epoch [{epoch+1}/{nepochs}], Loss: {total_loss/len(dataLoader):.6f}")
-            result.append([f"Epoch [{epoch+1}/{nepochs}]", total_loss/len(dataLoader)])
-        progress.close()
-        return result
+                # batch_loss: scale back to per-batch value for logging
+                try:
+                    batch_loss = (loss * grad_accum_steps).item()
+                except Exception:
+                    batch_loss = float(loss)
+                epoch_loss += batch_loss
+                batches += 1
+                pbar.set_postfix({'batch_loss': f"{batch_loss:.6f}"})
+
+            avg_train_loss = epoch_loss / max(1, batches)
+
+            # Optional validation
+            avg_val_loss = None
+            if val_loader is not None:
+                self.eval()
+                val_loss = 0.0
+                val_batches = 0
+                with torch.no_grad():
+                    for vbatch in val_loader:
+                        if isinstance(vbatch, (list, tuple)) and len(vbatch) >= 2:
+                            vinputs, vlabels = vbatch[0], vbatch[1]
+                        elif isinstance(vbatch, dict) and "inputs" in vbatch and "labels" in vbatch:
+                            vinputs, vlabels = vbatch["inputs"], vbatch["labels"]
+                        else:
+                            raise ValueError("Validation DataLoader must return (inputs, labels) tuples or dict with 'inputs' and 'labels'.")
+
+                        vinputs = vinputs.to(device, non_blocking=True) if isinstance(vinputs, torch.Tensor) else vinputs
+                        vlabels = vlabels.to(device, non_blocking=True) if isinstance(vlabels, torch.Tensor) else vlabels
+                        if isinstance(criterion, nn.CrossEntropyLoss):
+                            vlabels = vlabels.long()
+
+                        if use_amp:
+                            with torch.cuda.amp.autocast():
+                                voutputs = self(vinputs)
+                                vloss = criterion(voutputs, vlabels)
+                        else:
+                            voutputs = self(vinputs)
+                            vloss = criterion(voutputs, vlabels)
+
+                        val_loss += vloss.item()
+                        val_batches += 1
+
+                avg_val_loss = val_loss / max(1, val_batches)
+
+            print(f"Epoch {epoch+1}/{nepochs} - train_loss: {avg_train_loss:.6f}" + (f", val_loss: {avg_val_loss:.6f}" if avg_val_loss is not None else ""))
+            history.append((epoch + 1, avg_train_loss, avg_val_loss))
+
+            # Clear cache to reduce fragmentation between epochs
+            if device.type == 'cuda':
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
+
+        return history
 
     def save(self, folder_name="trained"):
             base_dir = os.path.dirname(os.path.abspath(__file__))
