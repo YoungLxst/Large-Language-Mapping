@@ -30,7 +30,7 @@ if __name__ == "__main__":
     num_workers = min(8, (os.cpu_count() or 4) // 2)
 
     train_loader = DataLoader(
-        PrecomputedFeaturesDataset("data/precomputed_features/train", fraction=0.7, shuffle=True, seed=42, dtype=torch.float16),
+        PrecomputedFeaturesDataset("data/precomputed_features/train", fraction=0.8, shuffle=True, seed=42, dtype=torch.float16),
         batch_size=4,
         shuffle=True,
         num_workers=num_workers,
@@ -38,16 +38,16 @@ if __name__ == "__main__":
         persistent_workers=(num_workers > 0),
     )
 
+    # Use smaller batch and float32 features for evaluation to avoid OOM during inference
     # test_loader = DataLoader(
-    #     PrecomputedFeaturesDataset("data/precomputed_features/test", fraction=0.25, dtype=torch.float16),
-    #     batch_size=8,
+    #     PrecomputedFeaturesDataset("data/precomputed_features/test", fraction=0.25, dtype=torch.float32),
+    #     batch_size=1,
     #     shuffle=False,
     #     num_workers=num_workers,
     #     pin_memory=(device.type == "cuda"),
     #     persistent_workers=(num_workers > 0),
     # )
 
-    print("------\n    training\n------\n")
     model = LargeLanguageMappingModel()
     try:
         model.to(device)
@@ -57,5 +57,23 @@ if __name__ == "__main__":
 
     # Prefer larger batch sizes when using precomputed features and GPU memory allows it.
     # Try gradient accumulation to reduce memory pressure (e.g., accumulate 4 steps)
-    model.fit(train_loader, lossFunc="cel", opt="adam", nepochs=5, device=device, grad_accum_steps=2)
+    print("------\n    training\n------\n")
+    model.fit(train_loader, lossFunc="cel", opt="adam", nepochs=5, device=device, grad_accum_steps=2, overfit_one_batch=False)
     model.save()
+
+    # print("------\n    testing\n------\n")
+    # model.load("model/trained/LLM_20260106_223450_nro7.pt")
+    # model.eval()
+    # correct = 0
+    # total = 0
+    # with torch.no_grad():
+    #     for inputs, labels in test_loader:
+    #         inputs = inputs.to(device, non_blocking=True)
+    #         labels = labels.to(device, non_blocking=True)
+    #         outputs = model(inputs)
+    #         _, predicted = torch.max(outputs, 1)
+    #         total += labels.size(0)
+    #         correct += (predicted == labels).sum().item()
+
+    # accuracy = 100 * correct / total
+    # print(f"Test Accuracy: {accuracy:.2f}%")
