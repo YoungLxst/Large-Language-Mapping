@@ -32,53 +32,16 @@ class LargeLanguageMappingModel(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.4),
             nn.Linear(512, N_CLASSES)
-        )
-
-    #     self.conv_layers = nn.Sequential(
-    #         nn.Conv3d(1, 32, kernel_size=3, padding=1),
-    #         nn.ReLU(),
-    #         nn.MaxPool3d((2, 2, 4)),  # -> (32, 12, 74, 256)
-
-    #         nn.Conv3d(32, 64, kernel_size=3, padding=1),
-    #         nn.ReLU(),
-    #         nn.MaxPool3d((2, 2, 4)),  # -> (64, 6, 37, 64)
-
-    #         nn.Conv3d(64, 128, kernel_size=3, padding=1),
-    #         nn.ReLU(),
-    #         nn.MaxPool3d((2, 2, 2)),  # -> (128, 3, 18, 32)
-
-    #         nn.Conv3d(128, 256, kernel_size=3, padding=1),
-    #         nn.ReLU(),
-    #         nn.AdaptiveAvgPool3d((1, 1, 1))  # -> (256, 1, 1, 1)
-    #     )
-    #     self.fc = nn.Linear(256, 45)
-
-    # def forward(self, x):
-    #     # Ensure input dtype matches model parameter dtype to avoid type mismatch
-    #     try:
-    #         param_dtype = next(self.parameters()).dtype
-    #         if isinstance(x, torch.Tensor) and x.dtype != param_dtype:
-    #             x = x.to(dtype=param_dtype)
-    #     except StopIteration:
-    #         pass
-
-    #     x = x.unsqueeze(1)  # Ajouter une dimension de canal
-    #     x = self.conv_layers(x)
-    #     x = x.view(x.size(0), -1)
-    #     x = self.fc(x)
-    #     return x    
+        )  
 
     def forward(self, x):
         """
-        x: (B, 24, T, 1024)
+        x: (B, 24, 149, 1024)
         """
-        # 👉 dernière couche wav2vec2
-        x = x[:, -1]            # (B, T, 1024)
+        x = x[:, 12]
         w = self.attn(x)        
         w = torch.softmax(w, dim=1)  
         x = (x*w).sum(dim=1)
-        # 👉 agrégation temporelle
-        #x = x.mean(dim=1)
 
         return self.classifier(x)
 
@@ -234,6 +197,7 @@ class LargeLanguageMappingModel(nn.Module):
                 pbar.set_postfix({'batch_loss': f"{batch_loss:.6f}"})
 
             avg_train_loss = epoch_loss / max(1, batches)
+            tqdm.write(f"Epoch {epoch+1}/{nepochs} - avg_train_loss: {avg_train_loss:.6f}")
 
             # # Optional validation
             # avg_val_loss = None
