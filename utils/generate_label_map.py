@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Generate label mapping files from data/train_clean.csv
 Writes:

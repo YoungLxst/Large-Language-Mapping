@@ -2,12 +2,10 @@ torch
 torchaudio
 torchcodec
 polars
-polars_cloud
 numpy
 click
 requests
 tqdm
-"transformers[torch]"
 fastapi
 uvicorn
 scikit-learn

@@ -9,6 +9,7 @@ def download():
     url = "https://huggingface.co/datasets/speechbrain/common_language/resolve/main/data/CommonLanguage.zip"
     local_filename = url.split('/')[-1]
 
+    # Streaming download
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
         total = int(r.headers.get("content-length",0))
@@ -21,6 +22,7 @@ def download():
 
     print(f"file {local_filename} download")
 
+    # extract zip file
     repo_root = os.getcwd()
     extract_dir = os.path.join(repo_root, "data")
     print(f"Extracting to {extract_dir}...")
@@ -33,6 +35,10 @@ def download():
     print(f"File {local_filename} extracted to {extract_dir}")
 
 def clean_csv(dataset_path="data/common_voice_kpd/"):
+    """
+    Clean the csv files from the dataset and combine them 
+    into single csv files for train, test and dev
+    """
     languages = os.listdir(dataset_path)
 
     file_type = ["train","test","dev"]
