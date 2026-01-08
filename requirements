@@ -8,3 +8,8 @@ click
 requests
 tqdm
 "transformers[torch]"
+fastapi
+uvicorn
+scikit-learn
+python-dotenv
+python-multipart

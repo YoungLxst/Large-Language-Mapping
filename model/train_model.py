@@ -30,7 +30,7 @@ if __name__ == "__main__":
     num_workers = min(8, (os.cpu_count() or 4) // 2)
 
     train_loader = DataLoader(
-        PrecomputedFeaturesDataset("data/precomputed_features/train", fraction=0.7, shuffle=True, seed=42, dtype=torch.float16),
+        PrecomputedFeaturesDataset("data/precomputed_features/train", fraction=1.0, shuffle=True, seed=42, dtype=torch.float16),
         batch_size=4,
         shuffle=True,
         num_workers=num_workers,
@@ -58,6 +58,7 @@ if __name__ == "__main__":
 
     # Prefer larger batch sizes when using precomputed features and GPU memory allows it.
     # Try gradient accumulation to reduce memory pressure (e.g., accumulate 4 steps)
+    model.load("model/trained/LLM_20260107_014540_v23s.pt")
     model.fit(train_loader, lossFunc="cel", opt="adam", nepochs=5, device=device, grad_accum_steps=2)
     model.save()
 

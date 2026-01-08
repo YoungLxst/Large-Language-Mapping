@@ -16,34 +16,45 @@ CONV_LAYERS = [
 N_CLASSES = 45
 
 class LargeLanguageMappingModel(nn.Module):
-    def __init__(self, conv_layers=CONV_LAYERS, input_dim=(24,149,1024)):
+    def __init__(self, input_dim=(24, 149, 1024), n_classes=N_CLASSES):
         super(LargeLanguageMappingModel, self).__init__()
 
         self.model_name = "LLM"
 
+        # Attention sur les frames
         self.attn = nn.Sequential(
             nn.Linear(1024, 256),
             nn.Tanh(),
             nn.Linear(256, 1)
         )
 
+        # Classifier final
         self.classifier = nn.Sequential(
             nn.Linear(1024, 512),
             nn.ReLU(),
             nn.Dropout(0.4),
-            nn.Linear(512, N_CLASSES)
-        )  
+            nn.Linear(512, n_classes)
+        )
 
     def forward(self, x):
         """
         x: (B, 24, 149, 1024)
         """
-        x = x[:, 12]
-        w = self.attn(x)        
-        w = torch.softmax(w, dim=1)  
-        x = (x*w).sum(dim=1)
+        B, S, F_len, D = x.shape  # S=24 segments, F_len=149 frames, D=1024
 
-        return self.classifier(x)
+        # Attention pooling sur les frames pour chaque segment
+        x_reshaped = x.view(B*S, F_len, D)          # (B*24, 149, 1024)
+        w = self.attn(x_reshaped)                   # (B*24, 149, 1)
+        w = torch.softmax(w, dim=1)                 # attention sur les frames
+        x_pooled = (x_reshaped * w).sum(dim=1)      # (B*24, 1024)
+        x_pooled = x_pooled.view(B, S, D)           # (B, 24, 1024)
+
+        # Moyenne sur les 24 segments
+        x_final = x_pooled.mean(dim=1)              # (B, 1024)
+
+        # Classifier
+        return self.classifier(x_final)
+
 
     
     def fit(self, dataLoader:DataLoader, lossFunc:str="cel",
