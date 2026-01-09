@@ -101,6 +101,14 @@ curl -sS -X POST "http://localhost:8000/predict" \
 | jq .
 ```
 
+Start the web page:
+
+the command line has to be done in the web folder
+
+```bash
+uvicorn main_frontend:app --port 5500
+```
+
 Troubleshooting
 - If `uvicorn` or your editor reports `Import "dotenv" could not be resolved`: install `python-dotenv` into the active venv (`pip install python-dotenv`) and restart your editor language server.
 - If torchaudio/torchcodec raises errors about ffmpeg, install system ffmpeg (Debian/Ubuntu: `sudo apt install ffmpeg`).

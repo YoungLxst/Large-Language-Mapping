@@ -8,6 +8,7 @@ import torchaudio
 import torch.nn.functional as F
 from typing import Optional
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 # Load environment variables from .env (if present)
 load_dotenv()
@@ -18,6 +19,15 @@ from model.Dataset import WAV2VEC2_MODEL
 
 app = FastAPI(title="Language Detection API")
 print(os.path.dirname(__file__))
+
+# Allow CORS for local development (the web UI will be served separately)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5500", "http://127.0.0.1:5500", "http://localhost:3000", "*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Configure model paths and devices
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "model", "trained")
