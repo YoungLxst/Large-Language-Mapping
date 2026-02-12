@@ -49,6 +49,7 @@ def clean_csv(dataset_path="data/common_voice_kpd/"):
                 client_id = np.array([], dtype=np.int64)
                 path = np.array([])
                 language = np.array([])
+                label = np.array([])
                 while True:
                     lines = f.readline()
                     if not lines:
