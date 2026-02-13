@@ -101,6 +101,12 @@ curl -sS -X POST "http://localhost:8000/predict" \
 | jq .
 ```
 
+For a request to the raspbery pi API : 
+
+```bash
+curl -X POST "88.126.86.197:16384/predict"    -F "file=@data/common_voice_kpd/Arabic/test/ara_tst_sp_1/common_voice_ar_19224861.wav"
+```
+
 Start the web page:
 
 the command line has to be done in the web folder
