@@ -1,16 +1,20 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Language Detection API")
 
-# your existing /predict endpoint and model code here...
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # en dev seulement
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # serve static
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
@@ -262,7 +266,9 @@ async def index():
                 </div>
             </div>
         </main>
-        <script src="/static/recorder.js"></script>
+        <script src="/static/recorder.js">
+        console.log(API_BASE)
+        </script>
     </body>
     </html>
     """

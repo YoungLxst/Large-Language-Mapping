@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+import numpy as np
 
 # Load environment variables from .env (if present)
 load_dotenv()

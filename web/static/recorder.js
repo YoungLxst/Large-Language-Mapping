@@ -1,7 +1,8 @@
 const recordBtn = document.getElementById("recordBtn");
 const statusEl = document.getElementById("status");
 const resultEl = document.getElementById("result");
-const API_BASE = "http://127.0.0.1:8000";
+// const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "http://88.126.86.197:16384";
 
 let mediaRecorder;
 let chunks = [];
